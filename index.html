@@ -1,0 +1,297 @@
+<!doctype html>
+<!--
+Christina Dan
+1000795128
+March 22, 2015
+Programming Assignment 3
+-->
+<html lang="en-US">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <title>Flawfinder Web Interface</title>
+    <link rel="shortcut icon" href="favicon.ico">
+    <link rel="icon" href="favicon.ico">
+    <link rel="stylesheet" type="text/css" media="all" href="style.css">
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <script type="text/javascript" src="js/jquery-1.9.1.min.js"></script>
+    <script type="text/javascript" charset="utf-8" src="js/jquery.leanModal.min.js"></script>
+    <script src="https://cdn.firebase.com/js/client/2.2.2/firebase.js"></script>
+    <!-- jQuery plugin leanModal under MIT License http://leanmodal.finelysliced.com.au/ -->
+  </head>
+  <body>
+    <div id="topbar" style="color: #FFFFFF;">
+      <a href="http://projects.christinadan.com/flawfinder"><h2>Flawfinder Web Interface</h2></a>
+      <div id="userLinks" style="font-size: 12px; margin-bottom: 40px; margin-top: -10px;">
+        <span class="left-links">
+          <a href="#about" id="aboutLink">About</a>
+        </span>
+        <div id="notLoggedInLinks">
+          <span class="right-links">
+            <a href="#registrationModal" class="registrationLink">Register</a>
+          </span>
+          <span style="float: right; padding-right: 5px;">
+            <a href="#loginModal" class="loginLink">Login</a> / 
+          </span>
+        </div>
+        <span class="right-links">
+          <span id="greeting"></span>
+          <a href="" id="logoutLink">Logout</a>
+        </span>
+      </div>
+    </div>
+    <div id="w">
+      <div id="content">
+        <div id="main">
+          <p>Upload your C/C++ source code to run flawfinder on it. Read about and download flawfinder <a href="http://www.dwheeler.com/flawfinder/" target="_blank">here</a>.</p>
+          <span id="errorMessage" class="errorMessage"></span>
+          <form id="uploadForm" class="form-horizontal" role="form" method="POST" style="margin-top: 20px;" enctype="multipart/form-data" action="">
+            <div class="form-group">
+                <label for="message" class="col-sm-2 control-label">File</label>
+                <div class="col-sm-10">
+                    <input type="file" name="fileToUpload" id="fileToUpload">
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="text-center">
+                    <input id="submitBtn" name="submitBtn" type="button" value="Submit" class="btn btn-success">
+                </div>
+            </div>
+          </form>
+          <div id="results">
+          </div>
+        </div>
+        <div id="about" style="display: none;">
+          <p>This is an assignment for David Levine's Secure Programming (CSE 4392) course at The University of Texas at Arlington. Our objective was to develop a web interface for a static analysis tool.</p>
+        </div>
+      </div>
+    </div>
+
+    <a href="#loginModal" class="flatbtn" id="modalTrigger" style="display:none;"></a>
+    <div id="loginModal" style="display:none;">
+      <div class="close"><a class="hidemodal">x</a></div>
+      <h3><center>Login</center></h3>
+      <form id="loginForm" name="loginForm" method="post" action="index.html">
+        <label for="username">Email:</label>
+        <input type="text" name="username" id="username" class="txtfield" tabindex="1">
+        
+        <label for="password">Password:</label>
+        <input type="password" name="password" id="password" class="txtfield" tabindex="2">
+
+        <div class="center">
+          <input type="submit" name="loginbtn" id="loginBtn" class="flatbtn-blu" value="Log In" tabindex="3">
+          <div id="loginError" class="error" style="display: none;"></div>
+        </div>
+      </form>
+      <div style="margin-top: 20px;">Not registered? <a href="#registrationModal" id="registrationModalTrigger">Register now</a></div>
+    </div>
+
+    <div id="registrationModal" style="display:none;">
+      <div class="close"><a class="hidemodal">x</a></div>
+      <h3><center>Registration</center></h3>
+      <form id="registrationForm" name="registrationForm" method="post">
+        <label for="username">Email:</label>
+        <input type="text" name="username" id="regUsername" class="txtfield" tabindex="1">
+        
+        <label for="password">Password:</label>
+        <input type="password" name="password" id="regPassword" class="txtfield" tabindex="2">
+        
+        <div class="center">
+          <input type="submit" name="registrationBtn" id="registrationBtn" class="flatbtn-blu" value="Register" tabindex="3">
+          <div id="registrationError" class="error" style="display: none;"></div>
+        </div>
+      </form>
+      <div style="margin-top: 20px;">Already registered? <a href="#loginModal" id="loginNow">Login</a></div>
+    </div>
+
+    <a href="#notLoggedInModal" class="flatbtn" id="notLoggedInModalTrigger" style="display:none;"></a>
+    <div id="notLoggedInModal" style="display:none;">
+      <div class="close"><a class="hidemodal">x</a></div>
+      <div class="warning"><p style="font-weight: bold; font-size: 18px;"><span class="glyphicon glyphicon-exclamation-sign"></span> User not logged in<p></div>
+      <p>Please <a href="#loginModal" class="loginLink">log in</a> to upload a file. If you don't have an account, you can register <a href="#registrationModal" class="registrationLink">here</a>.</p>
+    </div>
+  </body>
+  <div class="loadingModal"></div>
+</html>
+
+<script>
+  $(document).ready(function(){
+      var ref = new Firebase("https://flawfinderweb.firebaseio.com"); //using Firebase API http://firebase.com
+      var authData = ref.getAuth();
+      ref.onAuth(authDataCallback);
+
+      $('#modalTrigger').leanModal({ top: 110, overlay: 0.45, closeButton: ".hidemodal" });
+      $('#registrationModalTrigger').leanModal({ top: 110, overlay: 0.45, closeButton: ".hidemodal" });
+      $('#notLoggedInModalTrigger').leanModal({ top: 110, overlay: 0.45, closeButton: ".hidemodal" });
+
+      $('#registrationModalTrigger').click(function(){
+        $('#loginModal').hide();
+      });
+
+      $('#loginNow').click(function(){
+        $('#registrationModal').hide();
+        $('#modalTrigger').click();
+      });
+
+      $('#logoutLink').click(function(){
+        ref.unauth();
+      });
+
+      $('.loginLink').click(function(){
+        $('#notLoggedInModal').hide();
+        $('#modalTrigger').click();
+      });
+
+      $('#aboutLink').click(function(){
+        $('#main').hide();
+        $('#about').show();
+      });
+
+      $('.registrationLink').click(function(){
+        $('#notLoggedInModal').hide();
+        $('#registrationModalTrigger').click();
+      });
+
+      $('#registrationForm').submit(function(){
+        var user = $('#regUsername').val();
+        var pass = $('#regPassword').val();
+        register(user, pass);
+        return false;
+      });
+
+      $('#loginForm').submit(function(){
+        var user = $('#username').val();
+        var pass = $('#password').val();
+        login(user, pass);
+        return false;
+      });
+
+      $('#uploadForm').submit(function(){
+        e.preventDefault();
+        return false;
+      });
+
+
+      $('#submitBtn').click(function(){
+        authData = ref.getAuth();
+
+        if(!authData) {
+          $('#notLoggedInModalTrigger').click();
+        }
+        else {
+          if(!$('input[type="file"]').val()) {
+             alert("Please select a file.");
+             return false;
+          } 
+          else {
+            var emregex = /^([a-zA-Z0-9_.+-])+\@(([a-zA-Z0-9-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+            if ( emregex.test(authData.password.email) )
+            {
+              var fd = new FormData();
+              fd.append("userEmail", authData.password.email);
+              fd.append("fileToUpload", $( '#fileToUpload' )[0].files[0]);
+
+              $.ajax({
+                url: "scripts/upload.php",// Url to which the request is send
+                type: "POST",             // Type of request to be send, called as method
+                data: fd,                 // Data sent to server, a set of key/value pairs (i.e. form fields and values)
+                contentType: false,       // The content type used when sending data to the server.
+                cache: false,             // To unable request pages to be cached
+                processData: false,       // To send DOMDocument or non processed data file it is set to false
+                dataType: 'json',
+                success: function(data) { // A function to be called if request succeeds
+                  if (data.fileError == true) {
+                    $("#errorMessage").empty();
+                    $("#errorMessage").append(data.results);
+                  }
+                  else {
+                    $("#results").empty();
+                    $("#errorMessage").empty();
+                    $("#results").html(data.results);
+                  }
+                },
+                error: function(data, errorThrown) {
+                  $("#errorMessage").empty();
+                  $("#errorMessage").append("There was a problem uploading your file. Please try again.");
+                }
+              });
+            }
+            else {
+              $("#errorMessage").empty();
+              $("#errorMessage").append("There was a problem uploading your file. Please try again.");
+            }
+          }
+        }
+      });
+
+      $body = $("body");
+
+      $(document).on({
+          ajaxStart: function() { $body.addClass("loading");    },
+           ajaxStop: function() { $body.removeClass("loading"); }    
+      });
+
+      function authDataCallback(authData) {
+        authData = ref.getAuth();
+        if (authData) {
+          $('#logoutLink').show();
+          $('#greeting').append('Hello, ' + authData.password.email + " / ");
+          $('#greeting').show();
+          $('#notLoggedInLinks').hide();
+        } else {
+          $("#modalTrigger").click();
+          $('#logoutLink').hide();
+          $('#greeting').hide();
+          $('#greeting').empty();
+          console.log("User is logged out");
+        }
+      }
+
+      function register(user, pass){
+        ref.createUser({
+          email   : user,
+          password : pass
+        }, function(error, userData) {
+          if (error) {
+            switch (error.code) {
+              case "EMAIL_TAKEN":
+                $('#registrationError').empty();
+                $('#registrationError').append('Email address already in use');
+                $('#registrationError').show();
+                break;
+              case "INVALID_EMAIL":
+                console.log("The specified email is not a valid email.");
+                $('#registrationError').empty();
+                $('#registrationError').append('Invalid email address');
+                $('#registrationError').show();
+                break;
+              default:
+                console.log("Error creating user:", error);
+            }
+          } else {
+            console.log("Successfully created user account with uid:", userData.uid);
+            $('#registrationModal').hide();
+            $('#lean_overlay').fadeOut(200);
+            login(user, pass);
+          }
+        });
+      }
+
+      function login(user, pass){
+        ref.authWithPassword({
+          email   : user,
+          password : pass
+        }, function(error, authData) {
+          if (error) {
+            $('#loginError').empty();
+            $('#loginError').append('Invalid email address or password');
+            $('#loginError').show();
+            console.log("Login Failed!", error);
+          } else {
+            console.log("Authenticated successfully with payload:", authData);
+            $('#loginModal').hide();
+            $("#lean_overlay").fadeOut(200);
+          }
+        });
+      }
+  });
+</script>
